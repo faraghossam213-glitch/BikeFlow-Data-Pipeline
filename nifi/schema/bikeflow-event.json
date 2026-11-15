@@ -1,0 +1,14 @@
+{
+  "type": "record",
+  "name": "BikeStationEvent",
+  "namespace": "org.bikeflow",
+  "fields": [
+    {"name": "event_id", "type": "string"},
+    {"name": "station_id", "type": "string"},
+    {"name": "event_time", "type": "string"},
+    {"name": "available_bikes", "type": "int"},
+    {"name": "docks_available", "type": "int"},
+    {"name": "source", "type": "string"},
+    {"name": "ingest_time", "type": "string"}
+  ]
+}

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="470" viewBox="0 0 1400 470" role="img" aria-labelledby="title desc">
+  <title id="title">BikeFlow streaming pipeline</title>
+  <desc id="desc">GBFS station data enters through a poller and NiFi, flows through Kafka and Spark, and is served from PostgreSQL and Parquet to a Streamlit dashboard.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#527184"/></marker>
+    <style>
+      .box{rx:16;stroke-width:2}.t{font:600 18px Arial,sans-serif;fill:#123044}.s{font:14px Arial,sans-serif;fill:#315367}.edge{stroke:#527184;stroke-width:3;fill:none;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1400" height="470" fill="#f5f9fc"/>
+  <text x="54" y="52" class="t" font-size="27">BikeFlow | Real-Time Bike Share Monitor</text>
+  <text x="54" y="79" class="s">Station availability events, window aggregates, and low-stock alerts</text>
+  <rect x="45" y="170" width="180" height="100" class="box" fill="#e8f3ff" stroke="#6aa3d8"/><text x="135" y="207" text-anchor="middle" class="t">GBFS API</text><text x="135" y="234" text-anchor="middle" class="s">Station status</text>
+  <rect x="280" y="170" width="180" height="100" class="box" fill="#e9f8f1" stroke="#62af87"/><text x="370" y="207" text-anchor="middle" class="t">Python poller</text><text x="370" y="234" text-anchor="middle" class="s">Every 10 seconds</text>
+  <rect x="515" y="170" width="180" height="100" class="box" fill="#fff5df" stroke="#d5a549"/><text x="605" y="207" text-anchor="middle" class="t">Apache NiFi</text><text x="605" y="234" text-anchor="middle" class="s">Validate + route</text>
+  <rect x="750" y="170" width="180" height="100" class="box" fill="#f0eaff" stroke="#9576c9"/><text x="840" y="207" text-anchor="middle" class="t">Kafka 4 / KRaft</text><text x="840" y="234" text-anchor="middle" class="s">raw | dlq | alerts</text>
+  <rect x="985" y="170" width="180" height="100" class="box" fill="#e8f3ff" stroke="#6aa3d8"/><text x="1075" y="207" text-anchor="middle" class="t">Spark Streaming</text><text x="1075" y="234" text-anchor="middle" class="s">Dedup + windows</text>
+  <path d="M225 220 H275 M460 220 H510 M695 220 H745 M930 220 H980" class="edge"/>
+  <rect x="865" y="340" width="205" height="85" class="box" fill="#fff0e8" stroke="#d58c65"/><text x="967" y="374" text-anchor="middle" class="t">Parquet lake</text><text x="967" y="400" text-anchor="middle" class="s">Bronze + Silver</text>
+  <rect x="1110" y="340" width="205" height="85" class="box" fill="#e5f7f5" stroke="#52a89f"/><text x="1212" y="374" text-anchor="middle" class="t">PostgreSQL</text><text x="1212" y="400" text-anchor="middle" class="s">Windows + alerts</text>
+  <rect x="1110" y="55" width="205" height="85" class="box" fill="#edf4ff" stroke="#7799c4"/><text x="1212" y="89" text-anchor="middle" class="t">Streamlit</text><text x="1212" y="115" text-anchor="middle" class="s">Live + history pages</text>
+  <path d="M1075 270 V325 M1110 220 H1212 V335 M1212 335 V145" class="edge"/>
+  <text x="740" y="318" class="s">Alerts also publish to bikeflow.alerts; invalid events go to bikeflow.dlq</text>
+</svg>

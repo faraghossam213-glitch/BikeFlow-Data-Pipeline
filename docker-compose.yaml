@@ -1,0 +1,145 @@
+version: '3.8'
+
+services:
+  kafka:
+    image: apache/kafka:4.3.1
+    hostname: kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,DOCKER://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,DOCKER://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,DOCKER:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_LOG_RETENTION_HOURS: 72
+    ports:
+      - "29092:29092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka:9092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+    networks:
+      - bikeflow-net
+
+  topic-init:
+    image: apache/kafka:4.3.1
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "/scripts/create-topics.sh"]
+    volumes:
+      - ./kafka/create-topics.sh:/scripts/create-topics.sh:ro
+    restart: "no"
+    networks:
+      - bikeflow-net
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bikeflow}
+      POSTGRES_USER: ${POSTGRES_USER:-bikeflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_locally}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - bikeflow-net
+
+  nifi:
+    image: apache/nifi:2.12.0
+    environment:
+      NIFI_SENSITIVE_PROPS_KEY: bikeflow-local-dev-key-change-this
+      SINGLE_USER_CREDENTIALS_USERNAME: ${NIFI_USERNAME:-bikeflow}
+      SINGLE_USER_CREDENTIALS_PASSWORD: ${NIFI_PASSWORD:-Bikeflow-Local-2026!}
+      NIFI_WEB_PROXY_HOST: localhost:8082,localhost:8443
+      NIFI_JVM_HEAP_INIT: 512m
+      NIFI_JVM_HEAP_MAX: 1g
+    ports:
+      - "8082:8443"
+    volumes:
+      - nifi_state:/opt/nifi/nifi-current/state
+    healthcheck:
+      test: ["CMD-SHELL", "curl -kfsS https://localhost:8443/nifi-api/system-diagnostics >/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 30
+    networks:
+      - bikeflow-net
+  replayer:
+    build: ./replayer
+    environment:
+      - POLL_SECONDS=10
+      - STATION_FEED_URL=https://gbfs.citibikenyc.com/gbfs/en/station_status.json
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=bikeflow
+      - POSTGRES_USER=bikeflow
+      - POSTGRES_PASSWORD=change_me_locally
+    restart: unless-stopped
+    networks:
+      - bikeflow-net
+
+  spark:
+    build: ./spark
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      POSTGRES_DB: ${POSTGRES_DB:-bikeflow}
+      POSTGRES_USER: ${POSTGRES_USER:-bikeflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_locally}
+      POSTGRES_HOST: postgres
+    depends_on:
+      topic-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    volumes:
+      - spark_checkpoints:/checkpoints
+      - lake_data:/lake
+    command: ["/opt/spark/bin/spark-submit", "--master", "local[2]", "/app/stream.py"]
+    mem_limit: 2g
+    restart: unless-stopped
+    networks:
+      - bikeflow-net
+
+  dashboard:
+    build: ./dashboard
+    environment:
+      DB_HOST: postgres
+      DB_NAME: ${POSTGRES_DB:-bikeflow}
+      DB_USER: ${POSTGRES_USER:-bikeflow}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-change_me_locally}
+    ports:
+      - "8502:8501"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - bikeflow-net
+
+volumes:
+  kafka_data:
+  nifi_state:
+  postgres_data:
+  spark_checkpoints:
+  lake_data:
+
+networks:
+  bikeflow-net:
+    driver: bridge
